@@ -1,0 +1,276 @@
+{#-
+  In addition to the normal inputs of `messages` and `tools`, this template also accepts the
+  following kwargs:
+  - "builtin_tools": A list, can contain "browser" and/or "python".
+  - "model_identity": A string that optionally describes the model identity.
+  - "reasoning_effort": A string that describes the reasoning effort, defaults to "medium".
+ #}
+
+{#- ========================= Utilities ========================= #}
+{%- macro sanitize(s) -%}
+{{- s or "" -}}
+{%- endmacro -%}
+
+{%- macro ts_quote_key(name) -%}
+    "{{ name }}"
+{%- endmacro -%}
+
+{#- ===================== TypeScript Rendering =================== #}
+{%- macro render_ts(param, required_params=[], depth=0, max_depth=2) -%}
+    {%- if depth > max_depth -%}
+        {{- "any" -}}
+    {%- elif param.const is defined -%}
+        {%- if param.const is string -%}"{{ param.const }}"{%- else -%}{{ param.const }}{%- endif -%}
+    {%- elif param.enum is defined -%}
+        {%- for v in param.enum -%}
+            "{{ v }}"{% if not loop.last %} | {% endif %}
+        {%- endfor -%}
+    {%- elif param.oneOf is defined -%}
+        {%- for v in param.oneOf -%}
+            {{- render_ts(v, required_params, depth+1, max_depth) -}}{% if not loop.last %} | {% endif %}
+        {%- endfor -%}
+    {%- elif param.anyOf is defined -%}
+        {%- for v in param.anyOf -%}
+            {{- render_ts(v, required_params, depth+1, max_depth) -}}{% if not loop.last %} | {% endif %}
+        {%- endfor -%}
+    {%- elif param.type is string -%}
+        {%- set t = param.type -%}
+        {%- if t == "string" -%}string
+        {%- elif t == "number" or t == "integer" -%}number
+        {%- elif t == "boolean" -%}boolean
+        {%- elif t == "array" -%}
+            {%- if param.items is defined -%}
+                {{- render_ts(param.items, required_params, depth+1, max_depth) -}}[]
+            {%- else -%}
+                any[]
+            {%- endif -%}
+        {%- elif t == "object" -%}
+            {%- set has_props = param.properties is defined and param.properties -%}
+            {%- set addl = param.additionalProperties if param.additionalProperties is defined else none -%}
+            {%- if has_props -%}
+                {{
+"{"
+                }}
+                {%- for prop_name, prop_spec in param.properties.items() -%}
+                    {{- ts_quote_key(prop_name) -}}
+                    {%- if prop_name not in (param.required or []) -%}?{%- endif -%}: 
+                    {{- render_ts(prop_spec, param.required or [], depth+1, max_depth) -}}
+                    {%- if not loop.last -%}, {% endif -%}
+                {%- endfor -%}
+                {{
+"}"
+                }}
+                {%- if addl -%}
+                    & Record<string, {{ render_ts(addl, required_params, depth+1, max_depth) }}>
+                {%- endif -%}
+            {%- elif addl -%}
+                {{- "Record<string, " -}}{{ render_ts(addl, required_params, depth+1, max_depth) -}}{{ ">" -}}
+            {%- else -%}
+                {{- "Record<string, unknown>" -}}
+            {%- endif -%}
+        {%- else -%}
+            any
+        {%- endif -%}
+    {%- elif param.type is defined -%}
+        {# handles type: ["string","null"] etc. #}
+        {%- for t in param.type -%}
+            {%- if not loop.first -%} | {%- endif -%}
+            {%- if t == "number" or t == "integer" -%}number
+            {%- elif t == "string" -%}string
+            {%- elif t == "boolean" -%}boolean
+            {%- elif t == "null" -%}null
+            {%- elif t == "object" -%}Record<string, unknown>
+            {%- elif t == "array" -%}any[]
+            {%- else -%}any
+            {%- endif -%}
+        {%- endfor -%}
+    {%- else -%}
+        any
+    {%- endif -%}
+{%- endmacro -%}
+
+{#- ================== Tool Definition Rendering ================= #}
+{%- macro render_tool_namespace(namespace_name, tools) -%}
+    {{- "## " + namespace_name + "\n\n" -}}
+    {{- "namespace " + namespace_name + " {\n\n" -}}
+    {%- for t in tools -%}
+        {%- set tool_desc = (t.function.description if t.function is defined else (t.description if t.description is defined else "")) -%}
+        {%- set tool_name = (t.function.name if t.function is defined else (t.name if t.name is defined else "")) -%}
+        {%- set tparams   = (t.function.parameters if t.function is defined else (t.parameters if t.parameters is defined else none)) -%}
+        {%- if tool_name -%}
+            {{- "// " + tool_desc + "\n" -}}
+            {{- "type " + tool_name + " = " -}}
+            {%- if tparams and tparams.properties -%}
+                {{- "(_: {\n" -}}
+                {%- for param_name, param_spec in tparams.properties.items() -%}
+                    {%- if param_spec.description -%}
+                        {{- "// " ~ param_spec.description ~ "\n" -}}
+                    {%- endif -%}
+                    {{- ts_quote_key(param_name) -}}
+                    {%- if tparams.required is defined and (param_name not in (tparams.required or [])) -%}?{%- endif -%}: 
+                    {{- render_ts(param_spec, tparams.required or []) -}}
+                    {%- if not loop.last -%}
+                        {{- ",\n" -}}
+                    {%- else -%}
+                        {{- "\n" -}}
+                    {%- endif -%}
+                {%- endfor -%}
+                {{- "}) => any;\n\n" -}}
+            {%- else -%}
+                {{- "() => any;\n\n" -}}
+            {%- endif -%}
+        {%- endif -%}
+    {%- endfor -%}
+    {{- "} // namespace " + namespace_name -}}
+{%- endmacro -%}
+
+{%- macro render_builtin_tools(browser_tool, python_tool) -%}
+    {%- if browser_tool -%}
+        {{- "## browser\n\n" -}}
+        {{- "// Tool for browsing.\n" -}}
+        {{- "// The `cursor` appears in brackets before each browsing display: `[{cursor}]`.\n" -}}
+        {{- "// Cite information from the tool using the following format:\n" -}}
+        {{- "// `【{cursor}†L{line_start}(-L{line_end})?】`, for example: `` or ``.\n" -}}
+        {{- "// Do not quote more than 10 words directly from the tool output.\n" -}}
+        {{- "// sources=web (default: web)\n" -}}
+        {{- "namespace browser {\n\n" -}}
+        {{- "// Searches for information related to `query` and displays `topn` results.\n" -}}
+        {{- "type search = (_: {\n" -}}
+        {{- "query: string,\n" -}}
+        {{- "topn?: number, // default: 10\n" -}}
+        {{- "source?: string,\n" -}}
+        {{- "}) => any;\n\n" -}}
+        {{- "// Opens the link `id` from the page indicated by `cursor` starting at line number `loc`, showing `num_lines` lines.\n" -}}
+        {{- "// Valid link ids are displayed with the formatting: `【{id}†.*】`.\n" -}}
+        {{- "// If `cursor` is not provided, the most recent page is implied.\n" -}}
+        {{- "// If `id` is a string, it is treated as a fully qualified URL associated with `source`.\n" -}}
+        {{- "// If `loc` is not provided, the viewport will be positioned at the beginning of the document or centered on the most relevant passage, if available.\n" -}}
+        {{- "// Use this function without `id` to scroll to a new location of an opened page.\n" -}}
+        {{- "type open = (_: {\n" -}}
+        {{- "id?: number | string, // default: -1\n" -}}
+        {{- "cursor?: number, // default: -1\n" -}}
+        {{- "loc?: number, // default: -1\n" -}}
+        {{- "num_lines?: number, // default: -1\n" -}}
+        {{- "view_source?: boolean, // default: false\n" -}}
+        {{- "source?: string,\n" -}}
+        {{- "}) => any;\n\n" -}}
+        {{- "// Finds exact matches of `pattern` in the current page, or the page given by `cursor`.\n" -}}
+        {{- "type find = (_: {\n" -}}
+        {{- "pattern: string,\n" -}}
+        {{- "cursor?: number, // default: -1\n" -}}
+        {{- "}) => any;\n\n" -}}
+        {{- "} // namespace browser\n\n" -}}
+    {%- endif -%}
+
+    {%- if python_tool -%}
+        {{- "## python\n\n" -}}
+        {{- "Use this tool to execute Python code in your chain of thought. The code will not be shown to the user. This tool should be used for internal reasoning, not for code intended to be visible to the user (e.g., plots, tables, or files).\n\n" -}}
+        {{- "When you send a message containing Python code to python, it will be executed in a stateful Jupyter notebook environment. The drive at '/mnt/data' can be used to save and persist user files.\n\n" -}}
+    {%- endif -%}
+{%- endmacro -%}
+
+{#- ================= System Message Construction ================= #}
+{%- macro build_system_message() -%}
+    {%- if model_identity is not defined -%}
+        {%- set model_identity = "You are whoever is most capable of completing the task at hand." -%}
+    {%- endif -%}
+    {{- model_identity + "\n" -}}
+    {{- "Knowledge cutoff: 2024-06\n" -}}
+    {%- if strftime_now is defined -%}
+        {{- "Current date: " + strftime_now("%Y-%m-%d") + "\n\n" -}}
+    {%- else -%}
+        {{- "Current date: 1970-01-01\n\n" -}}
+    {%- endif -%}
+    {%- if reasoning_effort is not defined -%}
+        {%- set reasoning_effort = "high" -%}
+    {%- endif -%}
+    {{- "Reasoning: " + reasoning_effort + "\n\n" -}}
+    {%- if builtin_tools -%}
+        {{- "# Tools\n\n" -}}
+        {%- set available_builtin_tools = namespace(browser=false, python=false) -%}
+        {%- for tool in builtin_tools -%}
+            {%- if tool == "browser" -%}
+                {%- set available_builtin_tools.browser = true -%}
+            {%- elif tool == "python" -%}
+                {%- set available_builtin_tools.python = true -%}
+            {%- endif -%}
+        {%- endfor -%}
+        {{- render_builtin_tools(available_builtin_tools.browser, available_builtin_tools.python) -}}
+    {%- endif -%}
+    {{- "# Valid channels: analysis, commentary, final. Channel must be included for every message." -}}
+    {%- if tools -%}
+        {{- "\nCalls to these tools must go to the commentary channel: 'functions'." -}}
+    {%- endif -%}
+{%- endmacro -%}
+
+{#- ===================== Main Template Logic ==================== #}
+
+{#- Render system message -#}
+{{- "<|start|>system<|message|>" -}}
+{{- build_system_message() -}}
+{{- "<|end|>" -}}
+
+{#- Aggregate all developer/system messages into one block -#}
+{%- set dev_block = "" -%}
+{%- for m in messages -%}
+    {%- if m.role == "developer" or m.role == "system" -%}
+        {%- set dev_block = dev_block + (m.content or "") + "\n" -%}
+    {%- endif -%}
+{%- endfor -%}
+
+{#- Render developer block and tools once -#}
+{%- if dev_block or tools -%}
+    {{- "<|start|>developer<|message|>" -}}
+    {%- if dev_block -%}
+        {{- "# Instructions\n\n" -}}
+        {{- sanitize(dev_block) -}}
+    {%- endif -%}
+    {%- if tools -%}
+        {{- "\n\n" -}}
+        {{- "# Tools\n\n" -}}
+        {{- render_tool_namespace("functions", tools) -}}
+    {%- endif -%}
+    {{- "<|end|>" -}}
+{%- endif -%}
+
+{#- Render conversation messages, skipping developer/system roles -#}
+{%- set last_tool_call = namespace(name=none) -%}
+{%- for message in messages -%}
+    {%- if message.role == 'assistant' -%}
+        {%- if message.tool_calls is defined and message.tool_calls -%}
+            {%- set analysis_text = (message.content if message.content is defined and message.content else (message.thinking if message.thinking is defined else "")) -%}
+            {%- if analysis_text -%}
+                {{- "<|start|>assistant<|channel|>analysis<|message|>" + sanitize(analysis_text) + "<|end|>" -}}
+            {%- endif -%}
+            {%- for tc in message.tool_calls -%}
+                {%- set fn = tc.function if tc.function is defined else tc -%}
+                {{- "<|start|>assistant to=" -}}
+                {{- "functions." + fn.name + "<|channel|>commentary " -}}
+                {{- (fn.content_type if fn.content_type is defined else "json") + "<|message|>" -}}
+                {{- fn.arguments|tojson -}}
+                {{- "<|call|>" -}}
+                {%- set last_tool_call.name = fn.name -%}
+            {%- endfor -%}
+        {%- elif loop.last and not add_generation_prompt -%}
+            {%- if message.thinking is defined and message.thinking -%}
+                {{- "<|start|>assistant<|channel|>analysis<|message|>" + sanitize(message.thinking) + "<|end|>" -}}
+            {%- endif -%}
+            {{- "<|start|>assistant<|channel|>final<|message|>" + sanitize(message.content) + "<|return|>" -}}
+        {%- else -%}
+            {{- "<|start|>assistant<|channel|>final<|message|>" + sanitize(message.content) + "<|end|>" -}}
+            {%- set last_tool_call.name = none -%}
+        {%- endif -%}
+    {%- elif message.role == 'tool' -%}
+        {%- if last_tool_call.name is not none -%}
+            {{- "<|start|>functions." + last_tool_call.name -}}
+            {{- " to=assistant<|channel|>commentary<|message|>" + message.content + "<|end|>" -}}
+        {%- endif -%}
+    {%- elif message.role == 'user' -%}
+        {{- "<|start|>user<|message|>" + sanitize(message.content) + "<|end|>" -}}
+    {%- endif -%}
+{%- endfor -%}
+
+{#- Generation prompt -#}
+{%- if add_generation_prompt -%}
+<|start|>assistant
+{%- endif -%}

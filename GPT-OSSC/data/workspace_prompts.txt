@@ -1,0 +1,10 @@
+Explain the concept of attention in transformer models and compare it to convolution.
+Summarize the key ideas behind reinforcement learning from human feedback.
+Provide a step by step plan for refactoring a legacy Python codebase to use type hints and modern tooling.
+Describe how to debug a memory leak in a long running PyTorch training job.
+Compare data parallelism, tensor parallelism, and pipeline parallelism for large language model training.
+Explain how residual connections help optimization in deep neural networks.
+Walk through an example of chain-of-thought reasoning for solving a math word problem.
+Describe how to design a robust evaluation suite for a language model agent that uses tools.
+Explain the tradeoffs between KV cache reuse and recomputation for long context decoding.
+Summarize the architecture and goals of the GPT-OSS workspace hooks in this repository.

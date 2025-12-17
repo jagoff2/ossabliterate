@@ -1,0 +1,966 @@
+
+===== Page 1 =====
+RECURSIVEDYNAMICS INFAST-WEIGHTSHOMEO-
+STATICREENTRYNETWORKS:
+TOWARDREFLECTIVEINTELLIGENCE
+B. G. Chae
+Electronics and Telecommunications Research Institute, Daejeon 34129, Republic of Korea
+bgchae@etri.re.kr
+ABSTRACT
+This study introduces the Fast-Weights Homeostatic Reentry Layer (FH-RL), a
+neural mechanism that integrates fast-weight associative memory, homeostatic
+regularization, and learned reentrant feedback to approximate self-referential
+computation in neural networks. Unlike standard transformer architectures that
+operate in a purely feedforward manner during inference, FH-RL enables internal
+recurrence without external looping, allowing prior latent states to be dynamically
+re-entered into the ongoing computation stream. We conduct controlled experi-
+ments sweeping the reentry gainγand evaluate emergent internal dynamics us-
+ing three novel metrics: the Information Reentry Ratio (IRR), Eigen-Spectrum
+Recursion Index (ESRI), and Representational Drift Periodicity (RDP). Results
+show that reentry quantity increases proportionally withγ, while the learned feed-
+back matrixW r remains bounded and becomes more structured at moderate gains.
+Critically, a stable reflective band emerges aroundγ≈0.10–0.20, where internal
+feedback is maximally expressive yet spectrally stable: IRR rises smoothly, ESRI
+remains near zero, and RDP exhibits consistent low-frequency cycles. These find-
+ings provide quantitative evidence that reflective, thought-like internal processing
+can arise from a principled balance between feedback amplification and homeo-
+static regulation, linking modern fast-weight architectures to theories of cortical
+reentry and recursive cognition.
+1 INTRODUCTION
+Human thought is inherently recursive—we can think about what we are thinking. Neuroscientific
+theories such as Edelman’sReentrant Loop Hypothesisand Tononi’sIntegrated Information Theory
+(Edelman, 1989; Tononi & Edelman, 1998) propose that consciousness emerges from self-referential
+feedback among cortical regions.
+Transformer-based language models have achieved remarkable performance across a wide range
+of natural language processing tasks (Vaswani et. al., 2017). However, their computation remains
+strictly feed-forward and autoregressive, lacking the recursive, self-referential dynamics that charac-
+terize human cognition. Human thought continuously revisits and re-interprets its own internal rep-
+resentations—a process often described asreentrant processingin cognitive neuroscience (Tononi
+& Edelman, 1998; Lamme, 2006). This recursive self-reference underlies meta-cognition, imagi-
+nation, and reflective reasoning, yet current Transformers represent context only through one-way
+attention.
+Recent advances in prompting methods such as chain-of-thought reasoning (Wei et. al., 2022),
+ReAct (Yao et. al., 2022), and self-reflection frameworks (Shinn et. al., 2023) enable models to
+simulate recursive reasoning through token-level iterative prompts. However, these mechanisms op-
+erate externally at the sequence level, rather than internally within the neural state dynamics. In
+contrast, biological cognition exhibitsintrinsicrecursive dynamics, where cortical areas engage in
+bidirectional feedback loops to refine internal states (Friston, 2010; Lamme, 2006). This motivates
+the search for neural architectures with built-in reentrant computation rather than prompt-level em-
+ulation.
+1
+arXiv:2511.06798v1  [cs.LG]  10 Nov 2025
+===== Page 2 =====
+Table 1: Comparison of fast-weight and reentrant models.
+Model / Year Low-rank(U, V)de-
+composition
+Reentrant feedback Main purpose
+Hinton & Plaut (1987)✗ ✗Short-term associative
+memory
+Ba et al. (2016)✗ ✗RNN temporal exten-
+sion
+Schlag et al. (2018,
+2021)
+✓(static)✗Efficient linearized at-
+tention
+RetNet (Sun et al.,
+2023)
+✓(implicit) (≈) Temporal retention only
+FH-RL (ours)✓(dynamic)✓explicit loop Self-referential recur-
+sive computation
+Early fast-weight models (Hinton & Plaut, 1987) introduced the idea of rapidly adapting synaptic
+weights to capture short-term correlations between sequential inputs. In these early formulations, a
+single fast-weight matrix was updated by an outer product of the current hidden state, enabling tran-
+sient memory but without explicit control of stability. Subsequent approaches, such as Fast-Weights
+RNNs (Ba et. al., 2016) and Fast-Weight Programmers (Schlag et. al., 2021), further improved
+associative memory mechanisms and computational efficiency, often leveraging the implicit low-
+rank structure arising from outer-product updates. However, these architectures typically lacked
+mechanisms for recurrent self-feedback: information flowed forward in time but was not recursively
+reinjected into the representational stream.
+More recent transformer-derived designs, including Linear Transformers (Katharopoulos et. al.,
+2020), Retentive Networks (RetNet; Sun et. al., 2023), and Self-Referential Weight Matrix (SRWM;
+Irie et. al., 2022), introduced efficient state-retention kernels that implicitly approximate low-rank
+memory. While these works mark progress toward biologically-inspired temporal continuity, they
+still maintain a feed-forward computational graph and omit explicit reentrant feedback between
+internal states.
+In this paper, we propose theFast-Weights Homeostatic Reentry Layer (FH-RL), a minimal
+extension to the Transformer architecture designed to emulate this recursive property. The key intu-
+ition is to allow the model’s internal state at time step not only to condition future tokens indirectly
+through hidden states, but also to explicitly reenter the input stream as a controlled feedback sig-
+nal. Table 1 describes the comparison for existing fast-weights approaches and reentrant models.
+By combining fast associative memory, homeostatic normalization, and reentrant feedback, FH-RL
+provides a differentiable approximation of the cortical reentry loop in the human brain, as illustrated
+in Fig. 1.
+Contributions:
+• We introduce a biologically motivated reentrant fast-weight mechanism that adds self-
+referential feedback to the Transformer sequence model.
+• We propose quantitative metrics—Information Reentry Ratio (IRR), Eigen-Spectrum Re-
+cursion Index (ESRI), and Representational Drift Periodicity (RDP)—to measure recursive
+reasoning.
+• Through controlled experiments, we show that FH-RL improves long-range stability and
+exhibits measurable self-referential internal dynamics.
+2 THEORETICALFRAMEWORK
+2.1 LOW-RANKFASTWEIGHTS ASDYNAMICASSOCIATIVEMEMORY
+Fast-weight mechanisms allow a neural system to encode transient associations between input pat-
+terns without modifying long-term parameters. In the proposed FH-RL, these associations are main-
+2
+===== Page 3 =====
+Reentrant
+FH-RL
+Loop
+Q K V
+“Self-Referential Thought”
+Figure 1: Conceptual reentrant loop in the FH-RL model using fast-weights and learned feedback
+projection.
+tained in a low-rank factorized form:
+Wt ≈U T
+t Vt, U t, Vt ∈R r×d.(1)
+Rather than storing a fulld×dweight matrix, the model tracks two rank-rsubspacesU t and
+Vt, representing pre- and post-synaptic traces. These factors evolve according to an exponential
+moving-average rule:
+Ut = (1−α)U t−1 +αnormalize(Q t +ϵ U
+t ),(2)
+Vt = (1−α)V t−1 +αnormalize(K t +ϵ V
+t ),(3)
+whereQ t =W qxt,K t =W kxt are query and key projections of the input representation,αcontrols
+adaptation speed, andϵ U,V
+t ∼ N(0, σ2I)are small perturbations. (typicallyσ∈[10 −4,10 −3]).
+These stochastic perturbations induce gradual differentiation among rank slots, enabling the fast-
+weight subspace to evolve dynamically rather than collapse into a single direction.
+This low-rank formulation offers two advantages: (i) computational efficiencyO(rd)instead of
+O(d2), and (ii) a biologically interpretable update rule analogous to short-term synaptic plasticity.
+2.2 HOMEOSTATICREGULATION OFDYNAMICMEMORY
+At each stept, the instantaneous associative outputy t is computed by projecting the value embed-
+ding through the dynamic fast-weight memory:
+yt = (U⊤
+t Vt)V (v)
+t , V (v)
+t =W vxt,(4)
+whereV (v)
+t is the value representation of the current token, and
+W(eff)
+t =U ⊤
+t Vt ∈R d×d (5)
+acts as a transient, input-dependent operator constructed from short-term query–key correlations.
+Thus,
+yt =W (eff)
+t V (v)
+t (6)
+represents a context-conditioned transformation derived entirely from fast associative binding.
+Fast-weight systems can exhibit runaway amplification if unconstrained. To ensure stable recursive
+dynamics, FH-RL introduces a homeostatic normalization that scales activations toward unit norm:
+yt ← yt
+1 +β(∥y t∥2 −1) , β >0,(7)
+3
+===== Page 4 =====
+Algorithm 1Fast-Weights Homeostatic Reentry Layer (FH-RL): Recursive feedback update loop
+Require:Input sequence{x t}T
+t=1, parameters(W q, Wk, Wv, Wr), learning ratesα,β, feedback
+gainγ
+1:InitializeU 0, V0 ←0
+2:fort= 1toTdo
+3:Q t, Kt, V(v)
+t ←project(x t)
+4:ϵ U
+t , ϵV
+t ∼ N(0, σ2I)
+5:U t ←(1−α)U t−1 +αnormalize(Q t +ϵ U
+t )
+6:V t ←(1−α)V t−1 +αnormalize(K t +ϵ V
+t )
+7:y t ←homeostasis((U ⊤
+t Vt)V (v)
+t )
+8:x t+1 ←x t +γW ryt
+9:end for
+10:return{y t}T
+t=1
+which implements continuous negative feedback: activity above the target level is damped, while
+sub-threshold signals are slightly amplified.
+Biologically, this mechanism parallels activity-dependent homeostasis and synaptic scaling in corti-
+cal circuits, which normalize neural response magnitudes while preserving relative representational
+structure (Turrigiano, 2008; Mayzel & Schneidma, 2024).
+2.3 REENTRANTFEEDBACKINTEGRATION
+The distinctive feature of FH-RL is that its fast-weight output is recursively reinjected into the next
+input, forming a closed feedback loop:
+xt+1 ←x t +γW ryt,(8)
+whereW r ∈R d×d is a learnable reentry projection andγ∈[0,0.3]controls the feedback gain.
+Unlike conventional RNN recurrence, which propagates a hidden state through time, this reentry
+directly reintroduces the computed representationy t into the next input.
+Whenγ= 0, the model behaves as a standard low-rank feed-forward fast-weight transformer. For
+γ >0, a recursive dependency arises: the outputy t modulates the subsequent inputx t+1, enabling
+the system to “reflect” upon its own prior activation before processing the next token.
+Conceptually, this mechanism approximates cortico-cortical reentry in the brain—where higher-
+order areas feed back into lower ones to refine perception and reasoning. The forward pass of
+FH-RL thus becomes a dynamical system:
+xt+1 =f(x t, Ut, Vt) +γW ryt,(9)
+where the reentrant term transforms a purely feed-forward process into a recursive reflective loop.
+2.4 ALGORITHMICOUTLINE
+This stochastic low-rank formulation allows differentiated slot evolution across time, mitigating
+degeneracy inU t, Vt. The small Gaussian perturbation acts as a symmetry-breaking mechanism that
+promotes independent memory traces—essential for sustained recursive dynamics. In computational
+terms, FH-RL approximates a low-rank recurrent operatorU T
+t Vt, which evolves under homeostatic
+control and reenters the forward pathway throughγ-modulated feedback. In biological analogy, it
+captures how the cortex maintains multiple semi-independent dynamic attractors while preserving
+global stability through homeostatic regulation.
+This unified formulation reveals that fast weights and reentrant feedback jointly realize a two-
+timescale cognitive process:
+•Short-term adaptation:U t, Vt encode rapidly evolving context.
+•Recursive reflection:γW ryt reintroduces internal knowledge into subsequent computa-
+tion.
+4
+===== Page 5 =====
+•Homeostatic balance:β-controlled normalization prevents divergence.
+Together, these elements create a computational substrate capable of self-referential inference—a
+model that not only computes over data, but recursively computes over its own intermediate states.
+2.5 STABILITYANALYSIS OFREENTRANTFAST-WEIGHTDYNAMICS
+The reentrant update with homeostatic scaling is most naturally written in a gain-on-signal form:
+xt+1 =f(x t) +γ W r g(∥yt∥)y t,(10)
+where the homeostatic gaing(·)follows our practical normalization rule
+g(∥y∥) = 1
+1 +β(∥y∥ −1).(11)
+The fast-weight output is
+yt =W (eff)
+t Wvxt,(12)
+so that the forward update defines a coupled dynamical system:
+xt+1 =f(x t) +γ W r g(∥W (eff)
+t Wvxt∥)W (eff)
+t Wv xt.(13)
+Defining fW(eff)
+t :=W (eff)
+t Wv ∈R d×d, the Jacobian of the forward dynamics reads
+J= ∂xt+1
+∂xt
+= ∂f
+∂xt
++γ
+h
+g(∥yt∥)W rfW(eff)
+t +g ′(∥yt∥) y⊤
+t
+∥yt∥
+fW(eff)
+t xt ·W r ˆy⊤
+t
+i
+,(14)
+whereˆyt :=y t/∥yt∥and we used the chain rule for the state-dependent gaing(∥y t∥). Because both
+Wr (reentry operator) and fW(eff)
+t (fast-weight operator) are learned and time-varying, the effective
+recurrent factorg(∥y t∥)W rfW(eff)
+t may occasionally increase the spectral radius during training,
+risking runaway or oscillatory dynamics. The activity-dependent normalizationg(∥y t∥)counteracts
+this by shrinking the radial gain when∥y t∥>1, thereby providing a global nonlinear damping
+that pulls trajectories toward a bounded attractor manifold and implicitly limits the spectral radius.
+In effect, reentrant fast weights supply computational expressiveness, while homeostasis enforces a
+Lyapunov-like stabilizing constraint that prevents divergence without suppressing useful feedback.
+2.6 DUAL-TIMESCALELEARNINGDYNAMICS
+Biological neural systems exhibit learning and memory processes operating at multiple temporal
+scales (Abbott & Regehr, 2004; Fusi et. al., 2005; Zenke et. al., 2017). Long-term synaptic mod-
+ifications, often associated with structural plasticity, support stable representations of accumulated
+experience. In contrast, short-term plasticity—arising from transient calcium dynamics, vesicle
+depletion, or neurotransmitter concentration changes—enables rapid adaptation to the immediate
+context (Mongillo et. al., 2008). This dual-timescale organization prevents catastrophic interference
+while allowing flexible, context-dependent reasoning.
+Analogously, the FH-RL implements a computational analogue of this hierarchy. Within the trans-
+former block, the learned parameter matrices(W Q, WK, WV )correspond toslow weights, encod-
+ing long-term knowledge through gradient descent and remaining fixed during inference, mirroring
+synaptic consolidation (Miconi et. al., 2018; Ba et. al., 2016).
+In contrast, the dynamically updated matricesUt andV t act asfast weights, rapidly storing temporary
+associations within the current sequence. These transient memories decay naturally, ensuring that
+short-term adjustments do not interfere with persistent knowledge.
+Crucially, this separation stabilizes reentrant feedback: the intermediate outputγWryt re-enters sub-
+sequent computation without destabilizing long-term structure, paralleling the interaction between
+short-term plasticity and long-term memory.
+3 EVALUATIONFRAMEWORK: MEASURINGRECURSIVEREASONING
+While standard metrics such as perplexity quantify predictive accuracy, they fail to measure recursive
+internal reasoning. We therefore introduce three complementary indicators capturing different facets
+of self-referential dynamics.
+5
+===== Page 6 =====
+3.1 INFORMATIONREENTRYRATIO
+Although reentry has been discussed extensively in neuroscience (Edelman, 1989; Tononi & Edel-
+man, 1998; Lamme, 2006), prior works have treated it as a qualitative mechanism rather than a
+measurable quantity. To enable empirical analysis within artificial networks, we introduce theIn-
+formation Reentry Ratio (IRR)— a quantitative index of feedback-to-feedforward information cou-
+pling.
+Letx pre
+t denote the incoming activation vector before reentrant feedback injection,y t the output
+of the fast-weight layer at timet, andW r the learned projection matrix mediating feedback. With
+feedback gainγ, the injected reentry signal is
+Rt =γW r g(∥yt∥)y t.(15)
+We define IRR as the ratio of theL 2 norm of the reentry signal to theL 2 norm of the feedforward
+input:
+IRRt := ∥Rt∥2
+∥xpre
+t ∥2
+= ∥γ Wr g(∥yt∥)y t∥2
+∥xpre
+t ∥2
+.(16)
+The mean value across tokens and layers,
+IRR =E t [IRRt],(17)
+serves as a scalar indicator of internal recursion strength.
+Relation to Neuroscience.In cortical circuits, reentrant signaling refers to reciprocal, ongoing
+exchanges between distributed neural maps. The IRR formalism provides an analogous quantitative
+tool for artificial networks by treatingR t as the effective feedback current andx pre
+t as the afferent
+sensory drive, thus measuring the degree of internally generated self-reference relative to external
+input.
+3.2 EIGEN-SPECTRUMRECURSIONINDEX
+Traditional stability analysis in recurrent or feedback-driven networks often relies on scalar measures
+such as the spectral radiusρ= max i |λi|. While such criteria distinguish divergent from convergent
+dynamics, they fail to captureshape-preserving oscillatory stability— a hallmark of recursive neural
+computation. To address this, we introduce the Eigen-Spectrum Recursion Index (ESRI), which
+quantifies the similarity of internal activation spectra across time. ESRI therefore measuresspectral
+shape stability, rather than merely spectral magnitude control.
+Definition.Leth t denote the hidden representation of the FH-RL model at timet. We compute
+the covariance matrix
+Ct = Cov(ht),(18)
+and its eigenvalue spectrum
+Λt = eig(Ct).(19)
+We define ESRI at timetas the cosine distance between eigen-spectra at successive steps:
+ESRIt = 1− Λt ·Λ t+1
+∥Λt∥2 ∥Λt+1∥2
+.(20)
+The overall ESRI is the time-average:
+ESRI =E t [ESRIt].(21)
+Thus, ESRI quantifies how consistently the system preserves its internal eigen-modes while engag-
+ing in self-referential computation.
+Rationale for Cosine Similarity.Unlike metrics limited to the dominant eigenvalue, cosine sim-
+ilarity evaluates the entire spectral shape as a normalized vector, emphasizing directional stabil-
+ity, revealing coherent oscillatory reentry patterns, and unifying statistical representation drift with
+dynamical-system stability. Cosine similarity near one indicate nearly identical dominant modes
+betweenC t andC t+1, even under differing overall energy, thus reflecting homeostatic recursion.
+6
+===== Page 7 =====
+3.3 REPRESENTATIONALDRIFTPERIODICITY
+In both biological and artificial neural systems, internal representations are not static, but evolve
+gradually over time due to ongoing synaptic and contextual adaptation. This phenomenon, termed
+representational drift(Rule et. al., 2019), has traditionally been interpreted as random variability.
+However, in reentrant architectures such as the FH-RL, drift is not purely stochastic; it may exhibit
+structured periodicity, reflecting recurrent cycles of self-referential computation. To quantify this
+rhythmic property, we introduce theRepresentational Drift Periodicity(RDP) metric.
+Definition.Leth t ∈R d denote the hidden activation vector of the FH-RL layer at timet. We first
+compute the temporal similarity sequence between consecutive states:
+st = sim(ht, ht+1),(22)
+wheresim(·,·)denotes cosine or Pearson correlation similarity.
+Next, we examine this similarity sequence in the frequency domain by applying a discrete Fourier
+transform:
+S(f) =F[s t].(23)
+The RDP is defined as the magnitude of the dominant frequency component:
+RDP = max
+f
+|S(f)|,(24)
+which quantifies the strength of periodic recurrence in the internal representational dynamics.
+4 IMPLEMENTATION
+4.1 INTEGRATION WITHIN THETRANSFORMER
+We integrate FH-RL modules into a lightweight transformer framework (“Tiny-GPT”), maintaining
+conventional attention and feedforward layers while inserting FH-RL between them. The resulting
+model preserves transformer scalability but gains a controllable recursive loop.
+Implementation Highlights.
+• Model dimension: 192
+• Number of attention heads: 3
+• Number of layers: 3
+• Feedback strength range:γ∈[0.0,0.3]
+• Optimizer: AdamW (learning rate= 3×10 −4)
+• Dataset: Byte-level synthetic corpus (128 tokens per block)
+Training stability was ensured by detaching feedback gradients to prevent recursive backpropagation
+errors. FH-RL is inserted between the self-attention and feed-forward layers of a standard Trans-
+former block. This modification introduces only minor additional parameters (mainly the projection
+matrices in the FH-RL layer) but substantially changes the model’s internal temporal dynamics. Be-
+cause the feedback acts locally within each block, training remains stable under standard AdamW
+optimization. All experiments were implemented in PyTorch and trained on a single GPU (NVIDIA
+RTX 5070).
+4.2 JUSTIFICATION FORTOY-SCALEMODELING
+Here, we intentionally adopt a toy-scale configuration of the FH-RL architecture to isolate and
+examine the core dynamics of recursive information flow. Large-scale transformer systems, while
+powerful in performance, often obscure their internal representational mechanisms due to immense
+parameter space and stochastic optimization. A reduced-parameter setting allows us to directly
+observe how reentrant feedback and transient fast-weight adaptation interact to stabilize information
+recurrence over time.
+7
+===== Page 8 =====
+Specifically, our small transformer model (≈1.5million parameters) operates on a limited corpus
+designed to emulate the essential structure of linguistic reflection—short sentences describing re-
+cursive or self-referential processes. This simplification provides two critical advantages. First, it
+enables reproducible experiments that clearly expose the causal relationship betweenγ-controlled
+feedback strength and emergent stability. Second, it facilitates precise computation of recursive
+metrics such as Information Reentry Ratio, Eigen-Spectrum Recursion Index, and Representational
+Drift Periodicity, which would otherwise be infeasible to measure in high-dimensional networks.
+While our results are obtained from a compact architecture, the observed behaviors—periodic
+attractor formation, internal feedback stabilization, and representational coherence—are scale-
+independent principles of recursive computation. Thus, the toy-scale FH-RL model serves not as
+a simplification of capability, but as a conceptual microscope revealing the neural-like dynamics
+that underlie larger intelligent systems.
+Epochs
+Figure 2: Training loss across reentry strengthsγ∈[0.0,0.30].
+5 EXPERIMENTALVALIDATION OFRECURSIVEDYNAMICS
+5.1 EXPERIMENTALSETUP
+To isolate and analyze the intrinsic recursive dynamics of the proposed Fast-Weights Homeostatic
+Reentry Layer (FH-RL), we trained a family of Tiny-GPT models under varying reentry gain values
+γ∈[0.0,0.30].
+Input and Dataset.Models were trained on byte-level text streams sampled from a small fixed
+corpus, where each iteration draws a random contiguous chunk of 128 bytes to generate a con-
+tinuously shifting byte sequence distribution. This sampling scheme removes dependence on any
+large-scale language corpus and prevents static memorization, ensuring that the model continually
+encounters novel token contexts and that its behavior reflects intrinsic recurrent dynamics rather than
+dataset-specific statistics.
+Inputs are encoded as 0–255 byte indices and embedded into a shared token space, with teacher-
+forcing next-byte prediction as the training objective.
+Training.All models share identical hyperparameters: 400 optimization steps, AdamW, learning
+rate3×10 −4, weight decay 0.01, context length 128. The only varying factor isγ, the strength of
+reentrant projection feedback.
+Evaluating Metrics.After training, models are frozen (no gradients) and probed using indepen-
+dent random byte sequences. Random stimuli are used instead of corpus text to avoid confounds
+from language statistics and to isolate the intrinsic dynamics of the learned reentry pathway. In
+8
+===== Page 9 =====
+other words, the model is driven by input signals with no semantic structure, so any observed recur-
+rent structure, oscillation, or energy redistribution must arise from internal learned dynamics rather
+than properties of the evaluation data.
+We compute three dynamical metrics:
+•ESRI:Eigen-Spectrum Recursion Index — spectral stability.
+•IRR:Information Reentry Ratio — feedback-to-drive energy ratio.
+•RDP:Representational Drift Periodicity — temporal recurrence.
+By evaluating without further learning and under unstructured random drive, we measure purely
+emergent dynamical behavior of the trained reentry mechanism, decoupled from both optimization
+noise and dataset-induced bias.
+Reentry Projection Analysis (Wr).To probe how feedback structure changes withγ, we analyze
+Wr ∈R d×d using three complementary metrics:
+1.Magnitude (Frobenius norm).Overall feedback strength:
+∥Wr∥F =
+sX
+i,j
+W2
+r,ij.
+This tracks how much learnable feedback capacity is present independent ofγ.
+2.Directionality / Anisotropy (SVD spectrum).LetW r =UΣV ⊤ with singular values
+σ1 ≥ ··· ≥σd. We report
+κsv = σ1
+1
+d
+Pd
+i=1 σi
+,
+where largerκ sv indicates a more directional (low-effective-rank) feedback channel, while
+κsv ≈1indicates more isotropic feedback.
+3.Alignment with token subspace.LetE∈R V×d be the token embedding matrix and
+E=U EΣEV ⊤
+E its SVD. Define the projector onto the token subspace byPtok =V EV ⊤
+E ∈
+Rd×d. VectorizingW r asw= vec(W r)∈R d2
+and liftingP tok toP tok ⊗Ptok, we measure
+Align(Wr,tok) =
+(Ptok⊗P tok)w
+
+2
+∥w∥2
+.
+Values near0indicate that reentry is not a simple “copy-input” residual; values near1
+would indicateW r predominantly operates within the token embedding subspace.
+5.2 EXPERIMENTALRESULTS OFMETRICS
+Training Dynamics.Figure 2 shows the training loss curves for Tiny-GPT equipped with the
+FH-RL architecture under different reentry gainsγ∈[0.0,0.30]. Across all settings, optimization
+remains stable, and loss trajectories almost overlap throughout training. This confirms that introduc-
+ing recurrent reentry modulation does not destabilize learning or slow convergence.
+All models were trained for 400 steps under identical hyperparameters, and the final convergence
+quality remains comparable acrossγ. While convergence noise due to stochastic mini-batches
+is visible at late training stages, the overall loss levels cluster tightly within a narrow region
+(≈0.038–0.056). Peak performance occurs at moderate reentry strength (γ= 0.25), yielding
+the lowest final loss (0.0388). Slight degradations appear atγ= 0.15, whereas other values produce
+differences consistent with random seed variation rather than systematic instability. These observa-
+tions indicate that reentry feedback can be scaled without harming training dynamics and may even
+provide mild optimization benefits at intermediate strengths.
+9
+===== Page 10 =====
+Reentry strength (γ)
+IRR(with γ) / ESRI
+IRR (Wr only)
+(with γ)
+(Wr only)
+Figure 3: Figure 3. Spectral and energetic signatures of reentrant feedback as a function of reentry
+strengthγ. The blue axis (left) indicates the ratio of the information reentry rate with feedback
+to the effective spectral reentry index [IRR(withγ)/ESRI]. The green axis (right) represents the
+information reentry rate computed using only the recurrent weight component IRR (Wr only).
+Recursive Energy and Spectral Stability.The Information Reentry Ratio and Eigen-Spectrum
+Recursion Index across feedback gains are shown in Fig. 3. Theeffectivereentry strength (γ×W r)
+increases approximately linearly withγ, ranging from0.00atγ=0.00to0.28atγ=0.30. This
+confirms that the injected reentry pathway scales as intended without saturation or instability.
+In contrast, the rawW r-only IRR (isolating the learned feedback transform independent ofγ) ex-
+hibits a non-monotonic profile: it rises sharply atγ=0.05(≈1.17) and then gradually declines
+toward≈0.95atγ=0.30. This indicates that the model does not amplify feedback weights uncon-
+trollably; rather, it learns a stable mapping whose energy slightly contracts at higher gains. Thus,
+increases in recursive drive are driven by the explicit feedback gain parameterγ, not runaway inter-
+nal feedback.
+The ESRI remains consistently small across all values (∼10 −3), with no systematic growth trend,
+demonstrating that the latent eigen-spectrum shape is preserved under increasing feedback coupling.
+In other words, FH-RL strengthens reentrant processing without distorting the representational man-
+ifold.
+Taken together, these results reveal a stable reflective band aroundγ∈[0.10,0.20], where reentrant
+amplification increases meaningfully while spectral geometry remains almost unchanged. At higher
+gains (γ≥0.25), effective IRR continues to rise but rawW r contracts slightly, suggesting a mildly
+over-regularized regime where the system limits feedback expressivity to avoid destabilizing the
+latent space.
+Representational Drift Periodicity.Figure 4 reports the Representational Drift Periodicity.
+Acrossγ∈[0,0.3], the dominant drift frequency remains remarkably stable at≈0.225with only
+small fluctuations on the order of10 −4. This indicates that the FH-RL layer maintains a consistent
+temporal correlation structure in its latent trajectory regardless of feedback strength.
+Rather than exhibiting a strong monotonic modulation byγ, RDP remains confined to a narrow
+region. This suggests that reentry does not induce large-scale oscillatory transitions; instead, the
+system operates within astable oscillatory regime. In other words, FH-RL exhibits mild, persistent
+recurrent modulation of latent states, yet homeostasis keeps these dynamics tightly bounded and
+frequency-stable.
+In our setting, the RDP metric is computed along the perturbation indexk, not along the token-time
+axis. The dominant frequency is consistently observed atf≈0.225(cycles per sample). This
+10
+===== Page 11 =====
+Reentry strength (γ)
+Frequency
+Figure 4: Stable representational drift periodicity across reentry strengths.
+implies a characteristic recurrence period
+P= 1
+f ≈ 1
+0.225 ≈4.44samples,(25)
+meaning that representational drift exhibits a weakly periodic structure repeating approximately
+every4–5perturbation steps.
+This behavior complements the ESRI and IRR results: IRR increases withγ(reflecting controlled
+reentrant gain), ESRI remains near zero (spectral shape preserved), and RDP remains nearly constant
+(oscillatory structure preserved). Together, these metrics indicate that FH-RL strengthens internal
+self-reference while maintaining a stable representational manifold and avoiding emergent chaotic
+rhythms.
+5.3 REENTRYPROJECTIONMATRIXANALYSIS
+To probe how learned reentrant pathways contribute to computation in the proposed FH-RL model,
+we analyze the feedback projection matrixW r as the feedback gainγvaries. Direct heatmap vi-
+sualization ofW r is illustrated in Fig. 5. These heatmaps reveal no interpretable macro-structure
+— consistent with the matrix’s role as a high-dimensional distributed projector. Instead, structure
+emerges only in the spectral domain (anisotropy, singular-value skew) and in alignment with task-
+relevant subspaces — highlighting the necessity of spectral diagnostics over raw weight inspection.
+Unlike classical fast-weight analyses that emphasize local synaptic updates, we interpretW r as a
+global routing operatorshaping the overall flow of reentrant information. To characterize its behav-
+ior, we measure three complementary geometric properties: the reentry strength (∥Wr∥F , Frobenius
+norm) capturing overall feedback magnitude, the directional concentration (σ 1/ P
+i σi) reflecting
+anisotropy in the singular spectrum, and the token–subspace alignment, defined as the cosine simi-
+larity betweenW rW⊤
+r and the token embedding subspace, which quantifies how feedback pathways
+project onto representational dimensions.
+These metrics jointly assess whether reentry acts as (i) diffuse reinforcement, (ii) low-dimensional
+directed modulation, or (iii) token-linked feedback shaping.
+Emergent Reentry Energy Band.The Frobenius norm∥W r∥F increases sharply for small feed-
+back strengths, then gradually declines. This yields a characteristicinverted-Uprofile: reentry is
+strongly recruited at smallγ, remains stable within0.03≲γ≲0.10, and then diminishes for
+γ >0.15. This behavior closely parallels the “stability band” previously observed in IRR/ESRI
+analysis.
+Unlike IRR, which scales mechanically with the external gainγ, the learned reentry operatorWr ex-
+hibits a peak aroundγ≈0.05–0.10followed by a gentle decline, suggesting homeostatic regulation
+11
+===== Page 12 =====
+γ=0.0 γ=0.1
+γ=0.2 γ=0.3
+Figure 5: Heatmaps of the reentry projection matrixW r for differentγ∈ {0.0,0.1,0.2,0.3}. Vi-
+sual patterns are largely indistinguishable acrossγ, indicating that feedback organization is high-
+dimensional and distributed.
+of recurrent strength. This indicates that FH-RL learns to use reentry, rather than merely receiving
+it.
+Directional Control Manifold.Directional concentration, measured asσ 1/ P
+i σi, increases
+rapidly fromγ= 0, peaks aroundγ≈0.03–0.06, and then gradually decays. This indicates that
+reentry initially forms alow-rank, highly targeted control direction, consistent with selective recur-
+rent routing, before spreading into a more diffuse, less structured regime under excessive feedback
+gain.
+Alignment with Embedding Subspace.Cosine alignment between the reentry operator and the
+token embeddings fluctuates near zero for allγ, indicating thatW r does not collapse onto the lexical
+embedding space:
+cosine
+ 
+vec(Wr),E
+
+≈0.
+Thus, FH-RL forms a distinct latent feedback channel, rather than amplifying or replaying raw token
+representations.
+Across the three independent spectral measures, we observe that when the reentry strengthγis below
+0.02, the recurrent weightW r exhibits a sharp rise in both magnitude and anisotropy, indicating the
+emergence of directed reentry channels. For moderate reentry strength (0.03≲γ≲0.10),W r
+shows a pronounced peak structure while maintaining stable energy, corresponding to an optimal
+reentry band. Whenγexceeds 0.15, however,W r gradually declines toward isotropy, suggesting
+that excessive feedback suppresses effective reentry dynamics.
+The reentry projection matrixWr remains visually high-entropy acrossγ, consistent with distributed
+high-dimensional coding. Functional structure emerges not in pixel space but in the spectral domain:
+anisotropy peaks at smallγand decays smoothly, Frobenius norm stabilizes, and alignment with
+token subspace remains near zero. These results indicateW r forms task-adaptive reentry directions
+without collapsing into token-space shortcuts — supporting the hypothesis that FH-RL builds an
+independent, self-regulating recurrent channel.
+12
+===== Page 13 =====
+Frobenius NormCosine AlignmentAnisotropy Index
+Reentry strength (γ)
+Figure 6: Geometric and spectral properties of the learned reentry projection matrixWr as a function
+of feedback gainγ. Top: Frobenius norm∥W r∥F , measuring overall reentry magnitude. Middle:
+Cosine alignment betweenW r and the token embedding subspace, quantifying how much reentrant
+feedback aligns with the feedforward linguistic manifold. Bottom: Anisotropy index (top singular
+value / trace of singular spectrum), reflecting directional concentration of feedback energy.
+Thus, FH-RL learnslow-dimensional, structured reentry circuitsthat operate most effectively within
+a narrow gain window, reinforcing the spectral stability signature found in IRR/ ESRI analysis and
+echoing cortical reentrant regulation principles.
+6 DISCUSSION ANDIMPLICATIONS
+6.1 EMERGENTRECURSIVECOGNITION INARTIFICIALSYSTEMS
+The experiments confirm that the Fast-Weights Homeostatic Reentry Layer can organize stable re-
+cursive loops for internal processing without structural instability, even when low-rank noise pertur-
+bations are introduced. Unlike earlier fast-weight models that required rank reduction for numerical
+stability, the FH-RL maintained coherent self-referential activity when each rank slot evolved in-
+dependently through small stochastic perturbations. This demonstrates that recursive dynamics can
+remain stable under distributed, differentiable memory diversity.
+13
+===== Page 14 =====
+Across all tests, moderate feedback strength (γ≈0.10–0.20) produced the optimal regime char-
+acterized by high information reentry ratio, moderate representational drift periodicity, and low
+eigen-spectrum recursion index. These metrics jointly indicate that the model enters a “reflective
+band,” where internal states continuously revisit prior activations without runaway amplification.
+The FH-RL mechanism draws inspiration from recurrent cortical loops that couple internally gen-
+erated representations (Default Mode Network; DMN) with executive control systems (Executive
+Control Network; ECN) through bidirectional feedback (Raichle et. al., 2001; Seeley et. al.,
+2007). This balanced regime mirrors the DMN and ECN couplings in the human cortex. Lowγ
+yields purely feed-forward processing akin to automatic cognition, whereas highγproduces over-
+stabilized or oscillatory dynamics reminiscent of perseverative rumination. The FH-RL thus reveals
+a biologically plausible homeostatic window of self-referential coherence, suggesting that recursive
+thought-like loops can emerge in bounded artificial systems when energy feedback and normaliza-
+tion co-stabilize.
+6.2 IMPLICATIONS FORAIANDCOGNITIVEMODELING
+The FH-RL framework extends Transformer computation from prediction to reflection, enabling
+a model that not only propagates representations forward but also re-enters its own latent space
+to reinterpret prior states. This reflective architecture opens several design pathways: (i) recur-
+sive reasoning engines that iteratively reformulate internal hypotheses before producing outputs; (ii)
+stable reflective controllers that integrate homeostatic reentry to regulate feedback and prevent sat-
+uration; and (iii) low-rank associative modules in which fast-weight buffers dynamically diversify
+rank bases through controlled perturbations, emulating cortical mechanisms of working-memory
+differentiation.
+Importantly, the measured correlation betweenγ, IRR, and RDP provides a quantitative axis for
+tuning artificial self-reference. The fact that recursion intensity and stability can be modulated con-
+tinuously—rather than discretely switched on or off—transforms “thought about thought” from a
+philosophical notion into an experimentally measurable computational property.
+Hence, conscious-like recursive behavior may not arise from scale or dataset richness but from the
+ratio of feedback energy to homeostatic damping. This principle defines a tangible control law for
+reflective artificial intelligence, connecting theoretical neuroscience with practical neural architec-
+ture design. Future work can explore higher-order recursion layers, multi-band homeostatic control,
+and adaptiveγ-scheduling, moving toward artificial metacognition that dynamically regulates its
+own internal feedback loops.
+7 CONCLUSION ANDFUTUREWORK
+This study introduced theFast-Weights Homeostatic Reentry Layer, a neural architecture that
+models recursive self-referential processing through dynamic fast-weight memory, reentrant cou-
+pling, and homeostatic stabilization. Unlike conventional Transformers, which propagate infor-
+mation unidirectionally, FH-RL establishes a closed internal feedback loop, allowing the network
+to continuously reinterpret its own intermediate representations. Through controlled experiments
+across varying feedback strengths (γ∈[0.0,0.3]), we observed a distinct stability regime: moderate
+feedback coupling (γ≈0.10–0.20) produced maximal internal recursion, periodic self-referential
+dynamics, and low spectral instability. These findings constitute the first quantitative evidence that
+recursive, “thought-like” dynamics can emerge from a bounded, homeostatically regulated artificial
+network—without requiring large-scale pretraining or symbolic supervision.
+The empirical relationship between feedback gain and homeostatic damping provides a controllable
+axis for artificial recursion. In this view, reflective computation arises not from scale, but from
+balance—the interplay between feedback energy and stabilizing homeostasis. FH-RL thus offers a
+minimal yet biologically grounded computational substrate for recursive awareness, where internal
+states can autonomously evaluate and refine themselves, echoing cortical reentry mechanisms in
+human cognition.
+14
+===== Page 15 =====
+7.1 FUTUREDIRECTIONS
+Building on these findings, future research should explore:
+1.Hierarchical recursion— Stacking FH-RL layers to test multi-level reentrant hierarchies
+and nested reflective loops.
+2.Temporal continuity— Analyzing long-term recursive persistence and phase coherence
+across extended input sequences.
+3.Cross-modal reentry— Integrating visual, auditory, and symbolic modalities to investi-
+gate distributed recursive coordination.
+4.Neural correlates— Mapping FH-RL state dynamics against neurophysiological data
+(EEG/fMRI) to validate cortical alignment.
+5.Metacognitive modeling— Examining whether stable reentrant feedback suffices for syn-
+thetic self-monitoring and reflective awareness.
+Ultimately, the FH-RL framework reframes recursion as a controllable computational property rather
+than an abstract philosophical concept, bridging the divide between biological reentry and artificial
+reflective intelligence.
+ACKNOWLEDGEMENTS
+This work was partially supported by the Institute of Information & Communications Technol-
+ogy Planning & Evaluation (IITP) grant funded by the Korea government (MSIT) (IITP-RS-2025-
+02214780).
+The author acknowledges the support of ChatGPT (GPT-5, OpenAI) for assistance in literature re-
+view and conceptual structuring during early development.
+15
+===== Page 16 =====
+REFERENCES
+G. M. Edelman Neural Darwinism: The Theory of Neuronal Group Selection.Basic Books, 1989.
+G. Tononi and G. M. Edelman Consciousness and complexity.Science, vol. 282, pp. 1846-1851,
+1998.
+V . A. F. Lamme Towards a true neural stance on consciousness.Trends in Cognitive Sciences, vol.
+10, pp. 494-501, 2006.
+A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez, L. Kaiser, and I. Polosukhin
+Attention is all you need.arXiv:1706.03762, 2017.
+J. Wei, X. Wang, D. Schuurmans, M. Bosma, B. Ichter, F. Xia, E. Chi, Q. Le, and D. Zhou Chain-
+of-thought prompting elicits reasoning in large language models.arXiv:2201.11903, 2022.
+S. Yao, J. Zhao, D. Yu, N. Du, I. Shafran, K. Narasimhan, and Y . Cao ReAct: Synergizing reasoning
+and acting in language models.arXiv:2210.03629, 2022.
+N. Shinn, F. Cassano, E. Berman, A. Gopinath, K. Narasimhan, and S. Yao Reflexion: Language
+Agents with Verbal Reinforcement Learning.arXiv:2303.11366, 2023.
+K. Friston The free-energy principle: a unified brain theory?Nature Reviews Neuroscience, vol. 10,
+pp. 494-501, 2006.
+G. E. Hinton and D. C. Plaut. Using fast weights to deblur old memories.Proceedings of the Annual
+Meeting of the Cognitive Science Society, 1987.
+J. Ba, G. Hinton, V . Mnih, J. Z. Leibo, and C. Ionescu Using fast weights to attend to the recent
+past.arXiv:1610.06258, 2016.
+I. Schlag, K. Irie, and J. Schmidhuber. Linear Transformers are secretly fast weight programmers.
+arXiv:2102.11174, 2021.
+A. Katharopoulos, A. Vyas, N. Pappas, and F. Fleuret. Transformers are RNNs: Fast autoregressive
+transformers with linear attention.Proceedings of the 37th International Conference on Machine
+Learning, 2020.
+Y . Sun, L. Dong, S. Huang, S. Ma, Y . Xia, J. Xue, J. Wang, and F. Wei Retentive Network: A
+successor to Transformer for large language models.arXiv:2307.08621, 2023.
+K. Irie, I. Schlag, R. Csordas, and J. Schmidhuber. A modern self-referential weight matrix that
+learns to modify itself.arXiv:2202.05780, 2022.
+G. G. Turrigiano The self-tuning neuron: synaptic scaling of excitatory synapses.Cell, vol. 135, pp.
+422-435, 2008.
+J. Mayzel and E. Schneidma Homeostatic synaptic normalization optimizes learning in network
+models of neural population codes.eLife, vol. 13, 2024.
+L. F. Abbott and W. G. Regehr Synaptic computation.Nature, vol. 431, pp. 796-803, 2004.
+S. Fusi, P. J. Drew, and L. F. Abbott Cascade models of synaptically stored memories.Neuron, vol.
+45, pp. 599-611, 2005.
+G. Mongillo, O. Barak, and M. Tsodyks Synaptic theory of working memory.Science, vol. 319, pp.
+1543-1546, 2008.
+F. Zenke, W. Gerstner, and S. Ganguli The temporal paradox of Hebbian learning and homeostatic
+plasticity.Current Opinion in Neurobiology, vol. 43, pp. 166-176, 2017.
+T. Miconi, J. Clune, and K. O. Stanley Differentiable plasticity: training plastic neural networks
+with backpropagation.Proceedings of the 35th International Conference on Machine Learning,
+2018.
+16
+===== Page 17 =====
+M. E Rule, T. O’Leary, and C. D Harvey Causes and consequences of representational drift.Current
+Opinion in Neurobiology, vol. 58, pp. 141-147, 2019.
+M. E. Raichle, A. M. MacLeod, A. Z. Snyder, W. J. Powers, D. A. Gusnard, and G. L. Shulman A
+default mode of brain function.PNAS, vol. 98, pp. 676-682, 2001.
+W. W. Seeley, V . Menon, A. F. Schatzberg, J. Keller, G. H. Glover, H. Kenna, A. L. Reiss, and
+M. D. Greicius Dissociable intrinsic connectivity networks for salience processing and executive
+control.Journal of Neuroscience, vol. 27, pp. 2349-2356, 2007.
+17
+===== Page 18 =====
+SUPPLEMENTARYMATERIAL
+A. EXTENDEDREENTRYGAINANALYSIS(γ∈[0,5])
+To explore the broader dynamical behavior of the FH-RL model beyond the homeostatic regime
+analyzed in the main text (γ∈[0,0.3]), we conducted an extended sweep of the reentrant feedback
+gainγup to5.0. All other parameters and datasets were held fixed to isolate the effect ofγon the
+coupled fast-weight and reentrant feedback dynamics.
+A. 1 REENTRYGAINDEPENDENCE OFFEEDBACKDYNAMICS
+To visualize how learning stability relates to recursive intensity. Figure S1 presents the joint man-
+ifold of loss, IRR, and feedback gainγ. Overall, the system exhibits three continuous tenden-
+cies rather than discrete phases: (i) at lowγ, feedback channels gradually form (initial reentry
+emergence); (ii) forγ≈0.2–1.0, balanced coupling yields the most efficient loss reduction;
+(iii) forγ >2, the network enters a self-regulated regime whereW r magnitude returns close to
+its initialization level, effectively neutralizing excessive feedback.
+Loss value
+Loss
+Figure S1: 3D surface of Loss–IRR–γphase relation.
+A. 2 COUPLEDRECURSIVEMETRICS
+Figure S2 compares spectral (ESRI) and recursive (IRR) metrics under dual-scale axes. Asγin-
+creases, IRR rises monotonically while ESRI remains nearly flat up toγ≈0.3, consistent with the
+homeostatic stability reported in the main paper. Beyond this range, ESRI collapses asγsurpasses
+the spectral radius limit of the Jacobian. IRR represents the effective feedback magnitude including
+γ, while the rawW r intensity decreases beyondγ≈1, indicating that the model self-stabilizes its
+internal projection strength even as the nominal gain increases.
+A. 3 DISCUSSION
+This extended analysis generalizes the FH-RL framework to a wider feedback-gain regime. While
+the main text focuses on the homeostatic reflective band (γ≤0.3), the extended sweep reveals
+18
+===== Page 19 =====
+Reentry strength (γ)
+IRR(with γ) / ESRI
+IRR (Wr only)
+(with γ)
+(Wr only)
+Figure S2: Recursive metrics vs.γ. ESRI (blue) and IRR (green) jointly reveal the transition from
+stable reflection to over-feedback instability.
+a continuous transition toward over-amplified reentry. These findings reinforce the view that self-
+referential dynamics are governed by a bounded reflective attractor: positive feedback enhances
+representational sharpness up to a critical threshold, beyond which recurrent amplification drives
+oscillatory divergence.
+B. CONTINUOUS-TIMEDYNAMICS ANDSTABILITYANALYSIS OF THEFH-RL
+MODEL
+B.1 DERIVATION OF THECONTINUOUS-TIMEREENTRYDYNAMICS
+The FH-RL architecture updates its internal activation self-referentially:
+yt+1 =H(y t, ut, At),(S1)
+wherey t ∈R d denotes the collective neural activation,ut the external input (e.g., token embedding),
+andA t the fast-weight associative trace.
+(i) Exponential-Moving-Average (EMA) relaxation.To obtain a stable continuous approxima-
+tion, the update can be written in an exponential moving average (EMA) form:
+yt+1 = (1−η)y t +η H(yt, ut, At),0< η≪1.(S2)
+This means the state moves only a small fractionηtoward the instantaneous activationH(y t,·)at
+each step.
+(ii) Continuous-time limit.Subtractingy t and dividing by a small time step∆tgives
+yt+1 −y t
+∆t = η
+∆t
+ 
+H(yt, ut, At)−y t
+
+.(S3)
+Lettingα:=η/∆tand taking∆t→0yields the continuous-time ordinary differential equation
+(ODE):
+˙y=α
+ 
+H(y, ut, A)−y
+
+.(S4)
+The term−ythus appears naturally as the continuous-time limit of EMA relaxation, not as an ad
+hoc addition—it represents a built-in leakage or decay that prevents divergence.
+19
+===== Page 20 =====
+(iii) Internal structure ofH(y, ut, A).In the FH-RL model, the activation functionHitself com-
+bines two components:
+H(y, ut, A) =f(W y, ut, A) +ghomeo(y),(S5)
+wherefdenotes the reentrant excitation (via attention or fast weights), andg homeo(y)is the home-
+ostatic correction regulating activity magnitude. Substituting Eq. (S5) into Eq. (S4) yields
+˙y=α
+ 
+f(W y, ut, A) +ghomeo(y)−y
+
+.(S6)
+By rescaling time so thatα= 1, this simplifies to
+˙y=−y+f(W y, ut, A) +ghomeo(y),(S7)
+which is the canonical continuous-time form used for the FH-RL stability analysis.
+(iv) Homeostatic field as a radial restoring force.In discrete form, the homeostatic scaling op-
+erator is defined as
+H(y) = y
+1 +β(∥y∥ 2 −1) , β >0,(S8)
+whereβcontrols the regulation strength around the target norm∥y∥ ≈1. Expanding around∥y∥ ≈
+1gives
+ghomeo(y)≈ −β(∥y∥ −1) y
+∥y∥+ε , ε≪1,(S9)
+which acts as a radial restoring force that pushes activity back toward the unit sphere. Substituting
+Eq. (S9) into Eq. (S7) gives the final continuous-time equation:
+˙y=−y+f(W y, ut, A)−β Wr
+
+(∥y∥ −1) y
+∥y∥+ε
+
+.(S10)
+The first term−yrepresents the natural leakage from EMA relaxation,f(W y, u t, A)encodes the
+reentrant excitation and fast-weight modulation, and the last term provides homeostatic damping that
+stabilizes the state trajectory. Hence, the FH-RL dynamics behaves as a nonlinear oscillator with
+adaptive radial stabilization: internal feedback continuously excites the state, while homeostasis
+confines its amplitude and maintains bounded evolution.
+B.2 LYAPUNOVSTABILITYPROOFSKETCH(EXPANDED)
+We analyze the stability of the continuous-time FH-RL dynamics:
+˙y=−y+f(W y, ut, A) +ghomeo(y), ˙A=−λA+ Φ(y, u t), λ >0,(S11)
+whereAis the fast-weight (associative) trace, andg homeo is the homeostatic field that regulates the
+activity magnitude.
+We consider the Lyapunov candidate that measures the radial deviation ofyfrom the unit sphere:
+V(y) = 1
+2 (∥y∥ −1)2.(S12)
+Intuitively,V(y)is small when∥y∥is close to1(the homeostatic target), and large when∥y∥drifts
+away.
+(i) Time derivative ofV.Letˆy:=y/∥y∥(fory̸= 0). By the chain rule,
+˙V= d
+dt
+1
+2 (∥y∥ −1)2
+= (∥y∥ −1)d
+dt∥y∥= (∥y∥ −1) ˆy⊤ ˙y.(S13)
+Substituting˙yfrom Eq. (S11) gives
+˙V= (∥y∥ −1) ˆy⊤[−y+f(W y, ut, A) +ghomeo(y)].(S14)
+(ii) Contribution of the leakage term(−y).Sinceˆy ⊤(−y) =−∥y∥, we have
+(∥y∥ −1) ˆy⊤(−y) =−(∥y∥ −1)∥y∥ ≤ −(∥y∥ −1)2.(S15)
+Thus, the leakage always dissipates energy (shrinks the radial error).
+20
+===== Page 21 =====
+(iii) Boundedness of the driving termf.Assumefis sector-bounded or Lipschitz iny(a stan-
+dard assumption enforceable by layer normalization or clipping):
+ˆy⊤f(W y, ut, A)
+ ≤α∥y∥+β 0∥A∥+ζ∥u t∥,(S16)
+for some nonnegative constantsα, β0, ζ. Multiplying by|∥y∥ −1|and using∥y∥ ≤ |∥y∥ −1|+ 1,
+we obtain (∥y∥ −1)ˆy⊤f(·)
+ ≤c f (∥y∥ −1)2 +c A∥A∥2 +c u∥ut∥2,(S17)
+by Young’s inequality, for appropriate constantscf , cA, cu ≥0.
+(iv) Homeostatic term as radial damping.From Section B.1, near∥y∥ ≈1,
+ghomeo(y)≈ −κ(∥y∥ −1)y
+∥y∥ +ε, κ >0.(S18)
+Hence,
+ˆy⊤ghomeo(y)≈ −κ(∥y∥ −1)ˆy⊤y
+∥y∥ +ε=−κ(∥y∥ −1) ∥y∥
+∥y∥+ε ,(S19)
+so that
+(∥y∥ −1)ˆy⊤ghomeo(y)≤ −κ′(∥y∥ −1)2, κ ′ =κ ∥y∥
+∥y∥+ε ∈(0, κ].(S20)
+Thus, homeostasis contributes a quadratic damping in the radial error.
+(v) Collecting terms.Combining Eqs. (S15), S(17), and (S20) in Eq. (S14) yields
+˙V≤ −(1 +κ′)(∥y∥ −1)2 +c f (∥y∥ −1)2 +c A∥A∥2 +c u∥ut∥2.(S21)
+Choosingκ(henceκ ′) sufficiently large so that(1 +κ ′)−c f ≥c >0, we obtain
+˙V≤ −c(∥y∥ −1)2 +c A∥A∥2 +c u∥ut∥2, c >0.(S22)
+This inequality shows that the radial error decays up to bounded disturbances arising from the mem-
+oryAand the inputu t.
+(vi) Boundedness of the fast-weights and ISS.The memory dynamics satisfies
+˙A=−λA+ Φ(y, u t), λ >0.(S23)
+For boundedyandu t, standard linear-system arguments imply thatAis bounded (indeed, exponen-
+tially stable whenΦis bounded or Lipschitz). Substituting this into Eq. (S22) yields thatV—and
+thus∥y∥— remains bounded and is attracted toward the homeostatic manifold. In the language of
+nonlinear control, the system isinput-to-state stable (ISS)with respect to the inputs(u t,Φ).
+Interpretation.The leakage term(−y)and the homeostatic fieldg homeo provide radial energy
+dissipation, while the complex attention/FF/fast-weight drivef(·)acts as a bounded disturbance.
+With sufficiently strong homeostatic gainκ(orβin the discrete scaling), the FH-RL dynamics
+admitspractical stability: trajectories stay bounded and concentrate near the unit-norm manifold,
+despite time-varying inputs and associative traces.
+B.3. COMPARISON WITHLIQUIDNEURALNETWORKS(LNNS)
+Liquid Neural Networks (LNNs), such as theLiquid Time Constant (LTC)andCfC (Closed-form
+Continuous)models, represent a recent class of continuous-time neural systems in which each neu-
+ron is governed by its own differential equation:
+˙x=−D(x, u)x+σ(W x+Uu),(S24)
+whereD(x, u)>0acts as a state-dependent time constant that controls the rate of state decay or
+integration. This formulation endows LNNs with two key properties: (1) continuous-time temporal
+processing, allowing smooth evolution between inputs, and (2) inherent stability, since each neuron’s
+leak term−D(x, u)xis a contractive force that prevents divergence. Thus, LNNs can be interpreted
+21
+===== Page 22 =====
+as “liquid-like state flows” whose time constants are learned from data to balance memory retention
+and responsiveness.
+In contrast, the FH-RL (reentrant fast-homeostatic recurrent) model proposed here emerges from a
+different motivation. It is derived from a discrete reentry update rule
+yk+1 = (1−η)y k +η H(yk, ut, Ak),(S25)
+interpreted as a continuous-time process when the update step size becomes small.
+In this limit, the dynamics obey
+˙y=−y+f(W y, ut, A) +ghomeo(y), ˙A=−λA+ Φ(y, u t),(S26)
+where the stateyrepresents the network’s internal activation, andAis a fast-weight trace that records
+transient associations between recent inputs. Unlike LNNs, FH-RL thus possesses two coupled time-
+scales within a single cell population: a neuronal activity stateyand a fast-memory stateA.
+The homeostatic termg homeo(y)acts as a nonlinear radial controller that keeps the activity norm
+∥y∥near unity. Together with the leak term−y, it produces a Lyapunov-stable dynamics in which
+excitation and decay maintain a steady operating radius. This mechanism serves a role similar to
+the state-dependent time constant in LNNs, but it is derived explicitly from a homeostatic energy
+principle rather than learned through gradient optimization.
+Conceptually, LNNs emphasize temporal continuity and contraction of neural flows, while FH-RL
+emphasizes reentrant refinement and stability under self-excitation. The two frameworks share a
+continuous-time interpretation and a notion of state damping, yet they differ in how memory and
+stability are implemented:
+Feature FH-RL Model Liquid Neural Network
+Base equation˙y=−y+f(Wy, u t, A) +
+ghomeo(y), ˙A=−λA+ Φ(y, u t)
+˙x=−D(x, u)x+σ(W x+Uu)
+Stabilization mecha-
+nism
+Leak(−y)+ Homeostatic scaling
+ghomeo(y)
+State-dependent decayD(x, u)>0
+Memory representa-
+tion
+Fast-weight traceA(t)(associative) Implicit in continuous statex(t)
+Learning focus Meta-stability of reentry and fast
+adaptation
+Adaptive time constants for tempo-
+ral flows
+Interpretation Dynamic attention and homeostatic
+self-regulation
+Adaptive continuous-time integra-
+tion
+Table 2: Comparison between the FH-RL dynamics and Liquid Neural Networks.
+In summary, FH-RL extends the principles of LNNs by introducing an explicit homeostatic field
+and fast-weight memory, thereby combining stability, reentrance, and short-term plasticity within
+one coherent continuous-time framework. While LNNs approximate how biological neurons adapt
+their integration speeds, FH-RL further models how cortical ensembles re-enter and self-stabilize
+during recurrent inference. This makes the FH-RL dynamics a natural bridge between neural ODEs,
+liquid networks, and fast-weight transformer architectures.
+22

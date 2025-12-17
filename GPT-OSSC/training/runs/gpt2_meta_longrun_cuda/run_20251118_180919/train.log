@@ -1,0 +1,7 @@
+=== GPT-2 Meta Training Log ===
+[epoch 0 step 999] step=1000 loss=5.0120 gate_mean=0.841
+[epoch 0 step 1999] step=2000 loss=5.1339 gate_mean=0.901
+[epoch 0 step 2999] step=3000 loss=4.7646 gate_mean=0.870
+[epoch 0 step 3999] step=4000 loss=4.8979 gate_mean=0.834
+[epoch 0 step 4999] step=5000 loss=4.9009 gate_mean=0.900
+[epoch 0 step 5999] step=6000 loss=4.8364 gate_mean=0.898

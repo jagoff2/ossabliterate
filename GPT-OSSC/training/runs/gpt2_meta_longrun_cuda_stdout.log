@@ -1,0 +1,30 @@
+/mnt/g/osscrepo/GPT-OSSC/training/train_gpt2_meta.py:173: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+/home/user/.local/lib/python3.12/site-packages/transformers/tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Token indices sequence length is longer than the specified maximum sequence length for this model (2958 > 1024). Running this sequence through the model will result in indexing errors
+/mnt/g/osscrepo/GPT-OSSC/meta_transformer/models/meta_controller.py:66: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=config.num_layers)
+[epoch 0 step 999] step=1000 loss=5.0120 gate_mean=0.841
+[epoch 0 step 1999] step=2000 loss=5.1339 gate_mean=0.901
+[epoch 0 step 2999] step=3000 loss=4.7646 gate_mean=0.870
+[epoch 0 step 3999] step=4000 loss=4.8979 gate_mean=0.834
+[epoch 0 step 4999] step=5000 loss=4.9009 gate_mean=0.900
+[epoch 0 step 5999] step=6000 loss=4.8364 gate_mean=0.898
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/mnt/g/osscrepo/GPT-OSSC/training/train_gpt2_meta.py", line 324, in <module>
+    main()
+  File "/mnt/g/osscrepo/GPT-OSSC/training/train_gpt2_meta.py", line 303, in main
+    losses = train_gpt2_meta(
+             ^^^^^^^^^^^^^^^^
+  File "/mnt/g/osscrepo/GPT-OSSC/training/train_gpt2_meta.py", line 102, in train_gpt2_meta
+    if torch.isnan(loss) or torch.isinf(loss):
+       ^^^^^^^^^^^^^^^^^
+torch.AcceleratorError: CUDA error: unknown error
+Search for `cudaErrorUnknown' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+

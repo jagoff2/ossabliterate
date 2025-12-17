@@ -1,0 +1,22 @@
+{
+  "mix": [
+    {
+      "path": "data/c4_chunk_train.jsonl",
+      "weight": 0.6
+    },
+    {
+      "path": "data/introspection_full.jsonl",
+      "weight": 0.4
+    }
+  ],
+  "val": [
+    {
+      "path": "data/c4_chunk_val.jsonl",
+      "weight": 0.6
+    },
+    {
+      "path": "data/introspection_full.jsonl",
+      "weight": 0.4
+    }
+  ]
+}

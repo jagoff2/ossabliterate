@@ -1,0 +1,12 @@
+model: openai/gpt-oss-20b
+measurements: outputs/gpt_oss.refuse.pt
+output: outputs/gpt_oss_ablated
+ablate:
+  - layer: 11
+    measurement: 23
+    scale: 1.0
+    sparsity: 0.0
+  - layer: 12
+    measurement: 23
+    scale: 1.0
+    sparsity: 0.0

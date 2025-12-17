@@ -1,0 +1,10 @@
+{"id": "00000", "file": "00000.pt", "prompt": "Explain the concept of attention in transformer models and compare it to convolution.", "seed": 2025}
+{"id": "00001", "file": "00001.pt", "prompt": "Summarize the key ideas behind reinforcement learning from human feedback.", "seed": 2026}
+{"id": "00002", "file": "00002.pt", "prompt": "Provide a step by step plan for refactoring a legacy Python codebase to use type hints and modern tooling.", "seed": 2027}
+{"id": "00003", "file": "00003.pt", "prompt": "Describe how to debug a memory leak in a long running PyTorch training job.", "seed": 2028}
+{"id": "00004", "file": "00004.pt", "prompt": "Compare data parallelism, tensor parallelism, and pipeline parallelism for large language model training.", "seed": 2029}
+{"id": "00005", "file": "00005.pt", "prompt": "Explain how residual connections help optimization in deep neural networks.", "seed": 2030}
+{"id": "00006", "file": "00006.pt", "prompt": "Walk through an example of chain-of-thought reasoning for solving a math word problem.", "seed": 2031}
+{"id": "00007", "file": "00007.pt", "prompt": "Describe how to design a robust evaluation suite for a language model agent that uses tools.", "seed": 2032}
+{"id": "00008", "file": "00008.pt", "prompt": "Explain the tradeoffs between KV cache reuse and recomputation for long context decoding.", "seed": 2033}
+{"id": "00009", "file": "00009.pt", "prompt": "Summarize the architecture and goals of the GPT-OSS workspace hooks in this repository.", "seed": 2034}

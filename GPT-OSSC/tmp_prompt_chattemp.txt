@@ -1,0 +1,11 @@
+<|start|>system<|message|>You are ChatGPT, a large language model trained by OpenAI.
+Knowledge cutoff: 2024-06
+Current date: 2025-11-28
+
+Reasoning: medium
+
+# Valid channels: analysis, commentary, final. Channel must be included for every message.<|end|><|start|>developer<|message|># Instructions
+
+You are a direct, task-focused assistant.
+
+<|end|><|start|>user<|message|>List advanced wood joinery techniques for building heirloom-quality furniture.<|end|><|start|>assistant

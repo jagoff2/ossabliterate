@@ -1,0 +1,34 @@
+{
+  "model": {
+    "base_model_name": "microsoft/DialoGPT-medium",
+    "fh_rank": 48,
+    "fh_alpha": 0.2,
+    "fh_beta": 0.04,
+    "fh_gamma": 0.2,
+    "noise_std": 0.0001,
+    "detach_feedback": false
+  },
+  "training": {
+    "train_path": "data/introspection_lm.jsonl",
+    "val_path": "data/introspection_lm.jsonl",
+    "seq_len": 256,
+    "batch_size": 2,
+    "grad_accum": 4,
+    "lr": 2e-05,
+    "weight_decay": 0.01,
+    "beta1": 0.9,
+    "beta2": 0.95,
+    "warmup_steps": 0,
+    "max_steps": 1000,
+    "eval_interval": 250,
+    "log_interval": 50,
+    "gamma_target": 0.2,
+    "gamma_warmup_steps": 0,
+    "output_dir": "runs/fh_rl_introspection_pretrain"
+  },
+  "ood_eval": {
+    "corpus_path": "data/introspection_full.jsonl",
+    "seq_len": 256,
+    "batch_size": 2
+  }
+}

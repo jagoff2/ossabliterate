@@ -1,0 +1,29 @@
+TODO: Introspective RL Enhancements
+
+1. Report Alignment
+   - [x] Keep the report head supervised during RL using gold_report labels and ensure no [report unavailable].
+   - [x] Add a reward/penalty signal tied to attention-highlighted tokens (focus coverage bonus + penalty when absent).
+   - [x] Penalize repeated report sentences to stop template spam.
+
+2. Plan/Monitor Validation
+   - [x] Tie plan/monitor bonuses to actual problem entities (numbers, variables, events).
+   - [x] Add coverage/novelty penalties when Plan Steps repeat verbatim.
+
+3. Reflection / Replay Tasks
+   - Extend reflection prompts so pass #2 critiques pass #1 using workspace traces.
+   - Reward when the reflection fixes a mistake, penalize when it repeats unchanged answers.
+
+4. Workspace Trace Supervision
+   - Feed attention snapshots into a classifier; reward agreement between report text and trace classifier.
+   - Require a "Trace Summary" that names layers/heads, supervised with synthetic labels.
+
+5. Global Workspace Memory
+   - Expand memory entries with per-step descriptors and use them in later episodes.
+   - Add a memory-consistency reward when later episodes reference stored snippets correctly.
+
+6. Evaluation Harness
+   - Build an automatic evaluator for plan adherence, diagnosis accuracy, confidence calibration, and report quality.
+   - Run it every N episodes to catch regressions.
+
+7. Training Schedule
+   - Run training in monitored chunks, inspect logs/reports after each chunk, and adjust rewards accordingly.

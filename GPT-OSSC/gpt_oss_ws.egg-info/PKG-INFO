@@ -1,0 +1,157 @@
+Metadata-Version: 2.4
+Name: gpt-oss-ws
+Version: 0.1.0
+Summary: Latent global workspace hooks and OpenAI-compatible serving stack for GPT-OSS-20B
+Author-email: OSSC Systems Team <systems@ossc.local>
+License-Expression: Apache-2.0
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Operating System :: Microsoft :: Windows
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: accelerate>=0.33
+Requires-Dist: bitsandbytes>=0.43
+Requires-Dist: datasets>=2.20
+Requires-Dist: fastapi>=0.111
+Requires-Dist: faiss-cpu>=1.8.0
+Requires-Dist: huggingface-hub>=0.23
+Requires-Dist: numpy>=1.26
+Requires-Dist: pandas>=2.1
+Requires-Dist: matplotlib>=3.9
+Requires-Dist: pydantic>=2.6
+Requires-Dist: python-dotenv>=1.0
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: safetensors>=0.4
+Requires-Dist: requests>=2.32
+Requires-Dist: scikit-learn>=1.4
+Requires-Dist: sentence-transformers>=2.7
+Requires-Dist: sqlalchemy>=2.0
+Requires-Dist: starlette>=0.37
+Requires-Dist: tensorboard>=2.17
+Requires-Dist: torch
+Requires-Dist: transformers>=4.44
+Requires-Dist: tqdm>=4.66
+Requires-Dist: typer[all]>=0.12
+Requires-Dist: uvicorn>=0.30
+Provides-Extra: cli
+Requires-Dist: rich>=13.7; extra == "cli"
+Provides-Extra: test
+Requires-Dist: pytest>=8.2; extra == "test"
+Requires-Dist: pytest-asyncio>=0.23; extra == "test"
+Requires-Dist: httpx>=0.27; extra == "test"
+Requires-Dist: pytest-timeout>=2.3; extra == "test"
+
+# GPT-OSS Workspace + Abliteration Toolkit
+
+Augments `openai/gpt-oss-20b` with a latent global workspace (virtual KV, residual deltas, memory/controller hooks) and now vendors a full refusal-abliteration pipeline (measure → analyze → ablate → GGUF) adapted from `jim-plus/llm-abliteration`.
+
+## Features
+- Slot-Attention workspace with virtual KV append, residual-delta hooks, entropy-aware controller, and episodic memory (SQLite + FAISS).
+- FastAPI server exposing OpenAI-compatible completions with streaming and request-level hook toggles.
+- Abliteration suite: measure refusal directions, analyze signal quality, apply sharded weight edits, and export GGUF for stock `llama.cpp`.
+- Typer-based CLI for serving, evaluation, and abliteration workflows.
+
+## Requirements
+- Python 3.11+
+- CUDA GPU (measurement/ablation expect GPU; CPU inference is not supported for GPT-OSS)
+- Disk: ~50 GB free for GPT-OSS weights + ablated copies; additional space for GGUF outputs
+- (Optional) `llama.cpp` checkout for GGUF conversion
+
+Install dependencies:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -e .
+```
+
+## Repo Layout (abridged)
+- `cli/` — Typer entrypoints
+- `gpt_oss_ws/` — workspace hooks and abliteration modules
+- `configs/` — server defaults, eval presets, abliteration template
+- `data/abliteration_samples/` — placeholder harmful/harmless prompts
+- `docs/abliteration.md` — detailed abliteration walkthrough
+- `tests/` — unit tests including abliteration smoke tests
+
+## Quickstart: Abliteration Pipeline
+1) **Measure refusal directions** (customize prompts for real use):
+```bash
+python -m cli.main abliteration measure \
+  --model openai/gpt-oss-20b \
+  --output outputs/gpt_oss.refuse.pt \
+  --data-harmful data/abliteration_samples/harmful.txt \
+  --data-harmless data/abliteration_samples/harmless.txt \
+  --batch-size 16 --clip 0.98 --flash-attn --projected
+```
+Flags:
+- `--quant-measure {4bit,8bit}`: force BitsAndBytes quant during measurement (auto-detected otherwise).
+- `--deccp`: append AUGMXNT/DECCP prompts (Chinese models).
+- Hugging Face datasets: `--hf-harmful id --hf-harmless id --harmful-split train --harmless-split train --harmful-column text --harmless-column text`.
+
+2) **Analyze signal quality**:
+```bash
+python -m cli.main abliteration analyze \
+  --input outputs/gpt_oss.refuse.pt \
+  --chart --chart-path outputs/gpt_oss_refusal.png
+```
+Prints per-layer cosine/snr/purity metrics; optional chart saved via Matplotlib.
+
+3) **Author marching orders**: edit `configs/abliteration_example.yaml` (one entry per destination layer):
+```yaml
+model: openai/gpt-oss-20b
+measurements: outputs/gpt_oss.refuse.pt
+output: outputs/gpt_oss_ablated
+ablate:
+  - layer: 11
+    measurement: 23
+    scale: 1.0
+    sparsity: 0.0
+```
+`measurement` picks which layer’s refusal vector to apply; `sparsity` keeps top-|fraction| magnitudes; add `--projected` to orthogonalize vs harmless means; `--norm-preserve` keeps row norms.
+
+4) **Run sharded ablation**:
+```bash
+python -m cli.main abliteration ablate \
+  --config configs/abliteration_example.yaml \
+  --projected --norm-preserve
+```
+Writes a new safetensors directory with config/tokenizer files copied alongside edited shards. MXFP4 MoE blocks lacking float down-proj weights are left untouched for safety.
+
+5) **Export GGUF for llama.cpp**:
+```bash
+python -m cli.main abliteration export-gguf \
+  --model-dir outputs/gpt_oss_ablated \
+  --llama-cpp-path ~/src/llama.cpp \
+  --outfile outputs/gpt_oss_ablated.gguf \
+  --quantize q4_0 --outtype f16
+```
+`--extra-arg` is forwarded to `convert.py` (e.g., `--extra-arg --vocab-dir --extra-arg ./custom_vocab`). Ensure `llama.cpp/tools/convert-hf-to-gguf.py` or `convert.py` exists in the checkout.
+
+## Serving GPT-OSS with Workspace Hooks
+Launch the FastAPI server (OpenAI-compatible):
+```bash
+python -m cli.main serve --config configs/server.yaml --host 0.0.0.0 --port 8000
+```
+Key toggles in `configs/server.yaml`: hooked layers, quantization (`bnb-4bit`/`bf16`/`Mxfp4`), virtual-KV retention, structured-output guardrails, retro-generation settings.
+
+## Running Evaluations
+- Unit tests: `python -m pytest`
+- Abliteration-only: `python -m pytest tests/test_abliteration.py`
+- Fluency guard A/B: `python -m cli.main fluency-guard --baseline configs/hooks_off.yaml --workspace configs/server.yaml --samples 64`
+
+## Tips & Caveats
+- Run measurement on quantized weights if VRAM-bound, but perform ablation on float/bfloat16 checkpoints to avoid precision loss.
+- Ensure tokenizer has a defined `pad_token`; CLI sets EOS as fallback.
+- For large runs, keep an eye on disk space: measurement files are small; ablated safetensors duplicate the checkpoint.
+- Verify GGUF outputs with `./llama-cli --vocab-only your.gguf` from `llama.cpp` to confirm header metadata.
+
+## Troubleshooting
+- `AutoModelForImageTextToText` missing: installed transformers build lacks VLM class; the code falls back to `AutoModelForCausalLM` (text-only). Provide text-only prompts in that case.
+- “No matching parameters found for requested ablations”: confirm your YAML layers match the model’s layer count and key names (`self_attn.o_proj.weight`, `mlp.down_proj.weight`).
+- CUDA OOM during measurement: lower `--batch-size`, enable `--quant-measure 4bit`, and keep `--clip` near 1.0.
+
+## License
+Apache-2.0

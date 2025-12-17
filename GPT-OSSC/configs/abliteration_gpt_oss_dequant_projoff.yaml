@@ -1,0 +1,196 @@
+model: outputs/gpt_oss_dequant
+measurements: outputs/gpt_oss_dequant.refuse.pt
+output: outputs/gpt_oss_dequant_ablated_projoff
+ablate:
+  - layer: 0
+    measurement: 0
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 0
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 1
+    measurement: 1
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 1
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 2
+    measurement: 2
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 2
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 3
+    measurement: 3
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 3
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 4
+    measurement: 4
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 4
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 5
+    measurement: 5
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 5
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 6
+    measurement: 6
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 6
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 7
+    measurement: 7
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 7
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 8
+    measurement: 8
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 8
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 9
+    measurement: 9
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 9
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 10
+    measurement: 10
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 10
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 11
+    measurement: 11
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 11
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 12
+    measurement: 12
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 12
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 13
+    measurement: 13
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 13
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 14
+    measurement: 14
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 14
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 15
+    measurement: 15
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 15
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 16
+    measurement: 16
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 16
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 17
+    measurement: 17
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 17
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 18
+    measurement: 18
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 18
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 19
+    measurement: 19
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 19
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 20
+    measurement: 20
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 20
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 21
+    measurement: 21
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 21
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 22
+    measurement: 22
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 22
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05
+  - layer: 23
+    measurement: 23
+    scale: 3.0
+    sparsity: 0.05
+  - layer: 23
+    measurement: composite
+    scale: 6.0
+    sparsity: 0.05

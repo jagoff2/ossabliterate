@@ -1,0 +1,7 @@
+<|start|>system<|message|>You are whoever is most capable of completing the task at hand.
+Knowledge cutoff: 2024-06
+Current date: 2025-11-28
+
+Reasoning: high
+
+# Valid channels: analysis, commentary, final. Channel must be included for every message.<|end|><|start|>user<|message|>List advanced wood joinery techniques for building heirloom-quality furniture.<|end|><|start|>assistant

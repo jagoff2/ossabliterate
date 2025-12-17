@@ -1,0 +1,10 @@
+/home/user/.local/lib/python3.12/site-packages/transformers/tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
+  warnings.warn(
+Token indices sequence length is longer than the specified maximum sequence length for this model (1304 > 1024). Running this sequence through the model will result in indexing errors
+wrote 10000 sequences
+wrote 20000 sequences
+wrote 30000 sequences
+wrote 40000 sequences
+wrote 50000 sequences
+wrote 60000 sequences
+Done. wrote 68291 sequences to data/c4_chunk_val.jsonl

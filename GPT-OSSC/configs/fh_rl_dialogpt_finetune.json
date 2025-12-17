@@ -1,0 +1,34 @@
+{
+  "model": {
+    "base_model_name": "microsoft/DialoGPT-medium",
+    "fh_rank": 64,
+    "fh_alpha": 0.2,
+    "fh_beta": 0.1,
+    "fh_gamma": 0.0,
+    "noise_std": 1e-4,
+    "detach_feedback": true
+  },
+  "training": {
+    "train_path": "data/wikitext103_train.jsonl",
+    "val_path": "data/wikitext103_val.jsonl",
+    "seq_len": 256,
+    "batch_size": 1,
+    "grad_accum": 8,
+    "lr": 2e-5,
+    "weight_decay": 0.01,
+    "beta1": 0.9,
+    "beta2": 0.95,
+    "warmup_steps": 20,
+    "max_steps": 40,
+    "eval_interval": 20,
+    "log_interval": 5,
+    "gamma_target": 0.1,
+    "gamma_warmup_steps": 20,
+    "output_dir": "runs/fh_rl_dialogpt"
+  },
+  "ood_eval": {
+    "corpus_path": "data/ptb_val.jsonl",
+    "seq_len": 256,
+    "batch_size": 2
+  }
+}

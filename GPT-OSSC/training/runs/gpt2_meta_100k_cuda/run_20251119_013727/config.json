@@ -1,0 +1,44 @@
+{
+  "training": {
+    "batch_size": 2,
+    "seq_len": 256,
+    "vocab_size": 50257,
+    "num_epochs": 5,
+    "steps_per_epoch": 20000,
+    "learning_rate": 5e-05,
+    "weight_decay": 0.0,
+    "grad_clip": 1.0,
+    "seed": 42,
+    "log_every": 500,
+    "corpus_paths": [],
+    "train_paths": [
+      "README.md",
+      "docs/architecture.md",
+      "docs/workspace_training.md",
+      "data/meta_corpus.txt",
+      "data/prompts.txt"
+    ],
+    "val_paths": [
+      "README.md",
+      "docs/architecture.md"
+    ],
+    "tokenizer_name": "gpt2",
+    "stride": null,
+    "base_model_name": "gpt2",
+    "train_lm_head": true,
+    "run_dir": "/mnt/g/osscrepo/GPT-OSSC/training/runs/gpt2_meta_100k_cuda/run_20251119_013727",
+    "device": "cuda"
+  },
+  "model": {
+    "base_model_name": "gpt2",
+    "descriptor_dim": 4,
+    "controller": {
+      "descriptor_dim": 4,
+      "hidden_size": 128,
+      "num_layers": 2,
+      "num_heads": 4,
+      "dropout": 0.1
+    },
+    "device": "cuda"
+  }
+}

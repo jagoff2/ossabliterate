@@ -1,0 +1,34 @@
+{
+  "model": {
+    "base_model_name": "gpt2",
+    "fh_rank": 32,
+    "fh_alpha": 0.2,
+    "fh_beta": 0.1,
+    "fh_gamma": 0.0,
+    "noise_std": 1e-4,
+    "detach_feedback": true
+  },
+  "training": {
+    "train_path": "data/wikitext103_train.jsonl",
+    "val_path": "data/wikitext103_val.jsonl",
+    "seq_len": 256,
+    "batch_size": 4,
+    "grad_accum": 4,
+    "lr": 3e-5,
+    "weight_decay": 0.01,
+    "beta1": 0.9,
+    "beta2": 0.95,
+    "warmup_steps": 20,
+    "max_steps": 60,
+    "eval_interval": 30,
+    "log_interval": 5,
+    "gamma_target": 0.1,
+    "gamma_warmup_steps": 30,
+    "output_dir": "runs/fh_rl_gpt2"
+  },
+  "ood_eval": {
+    "corpus_path": "data/ptb_val.jsonl",
+    "seq_len": 512,
+    "batch_size": 4
+  }
+}
